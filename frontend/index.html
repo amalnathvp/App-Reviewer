@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Simple Mobile App Review Intelligence - Analyze customer reviews, sentiment trends over time, visual charts, and heatmaps for any mobile application.">
+  <title>App Review Intelligence | Visual PM Feedback Analyst</title>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Chart.js for graphs & charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Stylesheet (Clean White and Blue Theme) -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Clean Header -->
+  <header class="site-header" id="app-header">
+    <div class="brand-wrapper">
+      <div class="brand-icon">📈</div>
+      <div class="brand-text">
+        <h1>App Review Intelligence</h1>
+        <p>Customer Feedback Analysis & Visual Product Insights</p>
+      </div>
+    </div>
+    <div class="header-badge">
+      <span class="status-dot"></span>
+      <span>Live AI Engine Ready</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-wrapper" id="main-content">
+
+    <!-- 1st Page: Extremely Simple Single Input Box -->
+    <section class="hero-section" id="search-section">
+      <h2>Understand Any App's <span>User Feedback</span></h2>
+      <p>Enter an application name or app store link to analyze reviews from date, view sentiment trends, charts, heatmaps, and actionable product suggestions.</p>
+
+      <!-- Single Simple Text Box -->
+      <form id="search-form" onsubmit="event.preventDefault();" class="search-card">
+        <div class="search-icon-box">🔍</div>
+        <input 
+          type="text" 
+          id="single-app-input" 
+          class="search-input" 
+          placeholder="Enter app name or store link (e.g. Spotify, Duolingo, WhatsApp, Quizlet, or Play/App Store link)..." 
+          value="Quizlet: AI Study Flashcards" 
+          autocomplete="off"
+        />
+        <button type="submit" id="btn-submit-analyze" class="btn-analyze">
+          <span>⚡</span> Analyze App
+        </button>
+      </form>
+
+      <!-- Quick Try Suggestions -->
+      <div class="quick-try-row" id="quick-try-chips">
+        <span>Popular Apps:</span>
+        <button type="button" class="quick-try-chip" data-app="Spotify">Spotify</button>
+        <button type="button" class="quick-try-chip" data-app="Duolingo">Duolingo</button>
+        <button type="button" class="quick-try-chip" data-app="Notion">Notion</button>
+        <button type="button" class="quick-try-chip" data-app="Quizlet">Quizlet</button>
+        <button type="button" class="quick-try-chip" data-app="MiniReview">MiniReview</button>
+      </div>
+    </section>
+
+    <!-- Loading State -->
+    <section class="loading-box" id="loading-state" aria-live="polite">
+      <div class="loading-spinner"></div>
+      <div class="loading-title" id="loading-title">Retrieving & Analyzing Reviews...</div>
+      <div class="loading-subtitle" id="loading-subtitle">Collecting reviews by date, cleaning spam, and building sentiment charts & heatmaps.</div>
+    </section>
+
+    <!-- Visual Results Dashboard -->
+    <section class="results-wrapper" id="results-view">
+      
+      <!-- App Header Banner -->
+      <div class="app-header-card" id="app-header-box">
+        <div class="app-title-group">
+          <h3 id="res-app-title">Mobile Application</h3>
+          <div class="app-tags-row">
+            <span class="meta-pill" id="res-app-category">Category: Education</span>
+            <span class="meta-pill" id="res-app-rating">Rating: 4.6★</span>
+            <span class="meta-pill" id="res-app-platforms">Google Play & App Store</span>
+            <span class="meta-pill" id="res-app-sample-size">0 Reviews Analyzed</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Simple KPI Cards -->
+      <div class="kpi-row" id="kpi-row-cards">
+        <div class="kpi-box">
+          <div class="kpi-title">App Store Rating</div>
+          <div class="kpi-num blue" id="kpi-val-rating">4.6★</div>
+          <div class="kpi-desc">Official Store Average</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-title">Cleaned Reviews</div>
+          <div class="kpi-num" id="kpi-val-analyzed">0</div>
+          <div class="kpi-desc" id="kpi-val-spam">Spam & duplicates filtered</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-title">Positive Sentiment</div>
+          <div class="kpi-num green" id="kpi-val-positive">0%</div>
+          <div class="kpi-desc" id="kpi-val-negative">Negative: 0%</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-title">Top Urgent Friction</div>
+          <div class="kpi-num red" id="kpi-val-top-issue">None</div>
+          <div class="kpi-desc" id="kpi-val-top-score">Priority Score: 0</div>
+        </div>
+      </div>
+
+      <!-- Section: Visual Graphs & Charts -->
+      <h3 class="section-heading"><span>📊</span> Visual Feedback Trends & Charts</h3>
+      <div class="charts-grid">
+        
+        <!-- Graph 1: Reviews & Sentiment Trend Over Time -->
+        <div class="chart-card">
+          <h4><span>📈</span> Sentiment Trend Over Time (By Review Date)</h4>
+          <p>Tracking positive vs. negative review counts chronologically.</p>
+          <div class="chart-canvas-wrapper">
+            <canvas id="chart-timeline"></canvas>
+          </div>
+        </div>
+
+        <!-- Graph 2: Sentiment Donut -->
+        <div class="chart-card">
+          <h4><span>🍩</span> Overall Sentiment Breakdown</h4>
+          <p>Distribution across Positive, Negative, Neutral, and Mixed sentiment.</p>
+          <div class="chart-canvas-wrapper">
+            <canvas id="chart-sentiment"></canvas>
+          </div>
+        </div>
+
+        <!-- Graph 3: Ratings Bar Chart -->
+        <div class="chart-card">
+          <h4><span>⭐</span> Star Rating Breakdown (5★ to 1★)</h4>
+          <p>Volume and proportion of user ratings.</p>
+          <div class="chart-canvas-wrapper">
+            <canvas id="chart-ratings"></canvas>
+          </div>
+        </div>
+
+        <!-- Graph 4: Priority Leaderboard -->
+        <div class="chart-card">
+          <h4><span>🚨</span> Issues Ranked by Priority Score</h4>
+          <p>Score = Impact × Frequency × Severity (Highest requires immediate action).</p>
+          <div class="chart-canvas-wrapper">
+            <canvas id="chart-priority"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Graph 5: Thematic Heatmap Matrix -->
+      <div class="heatmap-card">
+        <h4><span>🔥</span> Issue Category & Severity Heatmap</h4>
+        <p>Heat-map visualization showing user complaint intensity across Severity Levels (Level 1 = Minor, Level 5 = Critical).</p>
+        <div style="overflow-x: auto;">
+          <table class="heatmap-table" id="heatmap-table-element">
+            <thead>
+              <tr>
+                <th>Product Category / Theme</th>
+                <th>Level 1 (Minor)</th>
+                <th>Level 2 (Low)</th>
+                <th>Level 3 (Moderate)</th>
+                <th>Level 4 (Serious)</th>
+                <th>Level 5 (Critical)</th>
+              </tr>
+            </thead>
+            <tbody id="heatmap-tbody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section: Easy-to-Understand Actionable Suggestions -->
+      <h3 class="section-heading"><span>🚨</span> Top Problems & Recommended Solutions</h3>
+      <div class="action-cards-grid" id="top-problems-grid">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Section: What Users Love -->
+      <h3 class="section-heading"><span>✨</span> What Users Love About The App</h3>
+      <div class="action-cards-grid" id="top-positives-grid">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Collapsible Simple Details (Mini PRD & Raw JSON) -->
+      <div class="details-accordion">
+        <div class="details-tab-nav" role="tablist">
+          <button type="button" class="details-tab-btn active" data-tab="pane-prd" role="tab">
+            <span>📝</span> Suggested Mini PRD
+          </button>
+          <button type="button" class="details-tab-btn" data-tab="pane-summary" role="tab">
+            <span>📄</span> Executive Summary
+          </button>
+          <button type="button" class="details-tab-btn" data-tab="pane-json" role="tab">
+            <span>💻</span> Standard JSON & Export
+          </button>
+        </div>
+
+        <!-- PRD Pane -->
+        <div class="details-tab-pane active" id="pane-prd" role="tabpanel">
+          <div class="mini-prd-view" id="prd-details-view">
+            <!-- Rendered PRD -->
+          </div>
+        </div>
+
+        <!-- Summary Pane -->
+        <div class="details-tab-pane" id="pane-summary" role="tabpanel">
+          <div style="white-space: pre-wrap; line-height: 1.8; color: #334155;" id="exec-summary-text">
+            <!-- Rendered Executive Summary -->
+          </div>
+        </div>
+
+        <!-- JSON Pane -->
+        <div class="details-tab-pane" id="pane-json" role="tabpanel">
+          <div class="json-actions">
+            <button type="button" class="btn-secondary" id="btn-copy-json">📋 Copy JSON</button>
+            <button type="button" class="btn-secondary" id="btn-download-json">⬇️ Download JSON</button>
+          </div>
+          <pre class="json-box" id="json-box-code">{}</pre>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Frontend Logic -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
