@@ -42,12 +42,37 @@ class ReviewCollector:
 
     @staticmethod
     def search_google_play(app_name: str, country: str = "us", lang: str = "en") -> Optional[str]:
+        if not app_name:
+            return None
+
+        # 1. Clean app name (remove subtitles like "Duolingo: Language Lessons" -> "Duolingo")
+        clean_name = app_name.split(":")[0].split("-")[0].strip()
+
+        # 2. Direct web search for highest reliability
         try:
-            results = gp_search(app_name, lang=lang, country=country)
-            if results and len(results) > 0:
-                return results[0].get("appId")
+            q = urllib.parse.quote(clean_name)
+            url = f"https://play.google.com/store/search?q={q}&c=apps&hl={lang}&gl={country}"
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            })
+            with urllib.request.urlopen(req, timeout=8) as res:
+                html = res.read().decode("utf-8", errors="ignore")
+                matches = re.findall(r'/store/apps/details\?id=([a-zA-Z0-9._]+)', html)
+                if matches:
+                    # Return first distinct match
+                    return matches[0]
         except Exception as e:
-            print(f"Error searching Google Play for {app_name}: {e}")
+            print(f"Direct Play Store search note for {app_name}: {e}")
+
+        # 3. Fallback to google_play_scraper search
+        try:
+            results = gp_search(clean_name, lang=lang, country=country)
+            for r in results:
+                if r.get("appId"):
+                    return r.get("appId")
+        except Exception as e:
+            print(f"Fallback Play Store search note for {app_name}: {e}")
+
         return None
 
     @staticmethod
@@ -142,8 +167,11 @@ class ReviewCollector:
                     meta["description"] = desc[:500] if desc else ""
                     meta["rating"] = round(float(info.get("averageUserRating", 0.0)), 2) if info.get("averageUserRating") else None
                     meta["review_count"] = info.get("userRatingCount")
+                    meta["version"] = info.get("version", "iOS Current")
         except Exception as e:
             print(f"Lookup error for Apple App {app_id}: {e}")
+
+        latest_ios_ver = meta.get("version", "iOS Current")
 
         # 2. Fetch reviews from Apple webpage embedded state
         try:
@@ -186,7 +214,7 @@ class ReviewCollector:
                                         "rating": int(rev.get("rating", 1)),
                                         "review": str(rev.get("contents", "")).strip(),
                                         "date": dt,
-                                        "version": "Latest",
+                                        "version": str(rev.get("version") or latest_ios_ver),
                                         "language": "en",
                                         "helpful_count": 0
                                     })

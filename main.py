@@ -4,15 +4,25 @@ from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.collector import ReviewCollector
 from app.pm_agent import PMAgent
 
 app = FastAPI(
-    title="AI Product Management Intelligence Agent",
-    description="Automated Customer Feedback Analysis & Actionable Product Insights Platform",
+    title="App Reviewer",
+    description="Customer Feedback Analysis & Actionable Product Insights Platform",
     version="1.0.0"
+)
+
+# Enable CORS for seamless deployment and API consumers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Request models
@@ -45,42 +55,45 @@ SAMPLE_APPS = [
         "name": "Quizlet: AI Study Flashcards",
         "category": "Education",
         "google_play_url": "https://play.google.com/store/apps/details?id=com.quizlet.quizletandroid",
-        "apple_store_url": "https://apps.apple.com/us/app/id546473125",
-        "icon": "📚"
+        "apple_store_url": "https://apps.apple.com/us/app/id546473125"
     },
     {
         "id": "spotify",
         "name": "Spotify: Music and Podcasts",
         "category": "Music & Audio",
         "google_play_url": "https://play.google.com/store/apps/details?id=com.spotify.music",
-        "apple_store_url": "https://apps.apple.com/us/app/id324684580",
-        "icon": "🎵"
+        "apple_store_url": "https://apps.apple.com/us/app/id324684580"
     },
     {
         "id": "duolingo",
         "name": "Duolingo: Language Lessons",
         "category": "Education",
         "google_play_url": "https://play.google.com/store/apps/details?id=com.duolingo",
-        "apple_store_url": "https://apps.apple.com/us/app/id570060128",
-        "icon": "🦉"
+        "apple_store_url": "https://apps.apple.com/us/app/id570060128"
     },
     {
         "id": "notion",
         "name": "Notion: Notes, Docs & Tasks",
         "category": "Productivity",
         "google_play_url": "https://play.google.com/store/apps/details?id=notion.id",
-        "apple_store_url": "https://apps.apple.com/us/app/id1232780281",
-        "icon": "📝"
+        "apple_store_url": "https://apps.apple.com/us/app/id1232780281"
     },
     {
         "id": "minireview",
         "name": "MiniReview - Game Reviews",
         "category": "Entertainment",
         "google_play_url": "https://play.google.com/store/apps/details?id=minireview.best.android.games.reviews",
-        "apple_store_url": "https://apps.apple.com/us/app/id6477473021",
-        "icon": "🎮"
+        "apple_store_url": "https://apps.apple.com/us/app/id6477473021"
     }
 ]
+
+@app.get("/api/health")
+async def health_check():
+    return {
+        "status": "ok",
+        "app": "App Reviewer",
+        "version": "1.0.0"
+    }
 
 @app.get("/api/sample-apps")
 async def get_sample_apps():
@@ -221,18 +234,36 @@ async def analyze_pasted_text(req: DirectTextRequest):
         "analysis": analysis
     }
 
-# Mount static files and frontend
-frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
-if os.path.exists(frontend_dir):
+# Resolve frontend paths reliably in both local and Vercel serverless environments
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+candidate_dirs = [
+    os.path.join(BASE_DIR, "frontend"),
+    os.path.join(BASE_DIR, "public"),
+    os.path.join(os.getcwd(), "frontend"),
+    os.path.join(os.getcwd(), "public"),
+    os.path.join(os.path.dirname(BASE_DIR), "frontend"),
+    os.path.join(os.path.dirname(BASE_DIR), "public"),
+]
+frontend_dir = next((d for d in candidate_dirs if os.path.isdir(d)), os.path.join(BASE_DIR, "frontend"))
+
+if os.path.isdir(frontend_dir):
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
 async def serve_index():
-    index_file = os.path.join(frontend_dir, "index.html")
-    if os.path.exists(index_file):
-        with open(index_file, "r", encoding="utf-8") as f:
-            return f.read()
-    return "<h1>AI Product Management Intelligence Agent</h1><p>Frontend loading...</p>"
+    candidates = [
+        os.path.join(frontend_dir, "index.html"),
+        os.path.join(BASE_DIR, "frontend", "index.html"),
+        os.path.join(BASE_DIR, "public", "index.html"),
+        os.path.join(os.getcwd(), "frontend", "index.html"),
+        os.path.join(os.getcwd(), "public", "index.html"),
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            with open(p, "r", encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>App Reviewer</h1><p>Frontend loading...</p>")
 
 if __name__ == "__main__":
     import uvicorn

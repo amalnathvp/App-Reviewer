@@ -333,7 +333,30 @@ class PMAgent:
 
             severity = config["severity"]
             impact = config["impact"]
-            platforms = list(set([r.get("platform", "google_play") for r in rev_list]))
+
+            # Collect versions, platforms, and churn risk for this problem
+            version_counter = Counter()
+            platform_counter = Counter()
+            churn_mentions_count = 0
+
+            for r in rev_list:
+                ver = r.get("version", "").strip()
+                plt = "Android" if r.get("platform") == "google_play" else "iOS"
+                platform_counter[plt] += 1
+                if ver and ver not in ("N/A", "None", ""):
+                    clean_v = ver if ver.startswith("v") else f"v{ver}"
+                    version_counter[f"{clean_v} ({plt})"] += 1
+                else:
+                    version_counter[f"{plt} (Current)"] += 1
+
+                txt_lower = r.get("review", "").lower()
+                if any(w in txt_lower for w in ["uninstall", "uninstalled", "deleting", "deleted", "cancel", "canceling", "switch", "leaving", "gave up"]):
+                    churn_mentions_count += 1
+
+            top_affected_versions = [v for v, _ in version_counter.most_common(3)]
+            churn_risk_level = "High Risk" if churn_mentions_count >= 2 else ("Moderate Risk" if churn_mentions_count == 1 else "Low Risk")
+            priority_score_val = impact * freq_score * severity
+            release_verdict_str = "Blocker: Requires Immediate Hotfix" if (severity >= 4 and impact >= 4 and priority_score_val >= 25) else ("High Priority for Next Sprint" if priority_score_val >= 18 else "Backlog Improvement")
 
             # Collect genuine quotes
             evidence = []
@@ -341,7 +364,9 @@ class PMAgent:
                 txt = r.get("review", "")
                 if len(txt) > 140:
                     txt = txt[:137] + "..."
-                evidence.append(f'"{txt}" (Rating: {r.get("rating")}★)')
+                ver_tag = r.get("version")
+                ver_str = f" [v{ver_tag}]" if ver_tag and ver_tag != "N/A" else ""
+                evidence.append(f'"{txt}" (Rating: {r.get("rating")} Stars{ver_str})')
 
             problems.append({
                 "problem": problem_name,
@@ -352,8 +377,12 @@ class PMAgent:
                 "frequency_score": freq_score,
                 "severity": severity,
                 "impact": impact,
-                "priority_score": impact * freq_score * severity,
-                "platforms_affected": platforms,
+                "priority_score": priority_score_val,
+                "platforms_affected": list(platform_counter.keys()),
+                "affected_versions": top_affected_versions,
+                "platform_breakdown": dict(platform_counter),
+                "churn_risk": churn_risk_level,
+                "release_verdict": release_verdict_str,
                 "evidence": evidence,
                 "possible_root_cause": config["root_cause"]
             })
@@ -871,10 +900,21 @@ Focus on achieving **Crash-Free Sessions >= 99.8%**, lifting the **Store Rating 
         return summary.strip()
 
     @classmethod
-    def compute_visual_analytics(cls, reviews: List[Dict[str, Any]], themes: List[Dict[str, Any]], problems: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def compute_visual_analytics(
+        cls,
+        reviews: List[Dict[str, Any]],
+        themes: List[Dict[str, Any]],
+        problems: List[Dict[str, Any]],
+        version_regressions: Optional[List[Dict[str, Any]]] = None,
+        churn_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Builds graph, chart, and heatmap datasets for visual PM dashboard.
         """
+        if version_regressions is None:
+            version_regressions = []
+        if churn_data is None:
+            churn_data = {}
         # 1. Timeline aggregation by date/month
         date_groups = defaultdict(lambda: {"pos": 0, "neg": 0, "neu": 0, "total": 0, "ratings": []})
         rating_counts = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
@@ -959,6 +999,14 @@ Focus on achieving **Crash-Free Sessions >= 99.8%**, lifting the **Store Rating 
                 "cells": cells
             })
 
+        # 5. Version Regression Analytics for Charting
+        version_chart_data = {
+            "labels": [v["version"] for v in version_regressions[:6]],
+            "ratings": [v["average_rating"] for v in version_regressions[:6]],
+            "neg_pcts": [v["negative_percentage"] for v in version_regressions[:6]],
+            "statuses": [v["status"] for v in version_regressions[:6]]
+        }
+
         return {
             "timeline": {
                 "labels": timeline_labels,
@@ -969,7 +1017,135 @@ Focus on achieving **Crash-Free Sessions >= 99.8%**, lifting the **Store Rating 
             },
             "ratings": ratings_data,
             "problem_chart": problem_chart,
-            "heatmap": heatmap_rows
+            "heatmap": heatmap_rows,
+            "version_chart": version_chart_data,
+            "churn_metrics": {
+                "churn_percentage": churn_data.get("churn_percentage", 0),
+                "churn_risk_level": churn_data.get("churn_risk_level", "Low"),
+                "churn_threat_count": churn_data.get("churn_threat_count", 0)
+            }
+        }
+
+    @classmethod
+    def analyze_version_regressions(cls, reviews: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Analyzes app version regressions: detects rating drops, bug spikes,
+        and platform distribution (Android vs iOS).
+        """
+        version_groups = defaultdict(lambda: {"ratings": [], "neg_count": 0, "reviews": [], "platform": "Android"})
+
+        for r in reviews:
+            ver = r.get("version", "").strip()
+            if not ver or ver in ("N/A", "None", ""):
+                ver = "Current"
+
+            plt = "Android" if r.get("platform") == "google_play" else "iOS"
+            clean_v = ver if ver.startswith("v") else f"v{ver}"
+            key = f"{clean_v} ({plt})"
+
+            rating = r.get("rating", 3)
+            version_groups[key]["ratings"].append(rating)
+            version_groups[key]["platform"] = plt
+            version_groups[key]["reviews"].append(r)
+            if rating <= 2:
+                version_groups[key]["neg_count"] += 1
+
+        version_list = []
+        for v_key, data in version_groups.items():
+            cnt = len(data["ratings"])
+            avg_r = round(sum(data["ratings"]) / cnt, 2)
+            neg_pct = round((data["neg_count"] / cnt) * 100, 1)
+
+            # Determine regression status
+            if neg_pct >= 40.0 or avg_r < 3.0:
+                status = "Regression Alert"
+            elif neg_pct >= 25.0:
+                status = "Degraded"
+            else:
+                status = "Healthy"
+
+            # Top reported issue keyword in this version
+            words = Counter()
+            for r in data["reviews"]:
+                if r.get("rating", 3) <= 2:
+                    for w in r.get("tokens", []):
+                        if len(w) > 3 and w not in cls.MEANINGLESS_WORDS:
+                            words[w] += 1
+            top_issue = words.most_common(1)[0][0] if words else "General stability"
+
+            version_list.append({
+                "version": v_key,
+                "platform": data["platform"],
+                "review_count": cnt,
+                "average_rating": avg_r,
+                "negative_percentage": neg_pct,
+                "top_friction": top_issue.capitalize(),
+                "status": status
+            })
+
+        # Sort by review count descending
+        version_list.sort(key=lambda x: x["review_count"], reverse=True)
+        return version_list
+
+    @classmethod
+    def analyze_churn_and_cohorts(cls, reviews: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Analyzes customer churn threats, competitor mentions, and user cohorts.
+        """
+        churn_keywords = ["uninstall", "uninstalled", "deleted", "deleting", "cancel", "canceling", "switch", "leaving", "gave up", "unusable"]
+        competitor_keywords = ["spotify", "apple music", "anki", "quizlet", "duolingo", "notion", "youtube", "babbel", "busuu", "evernote", "obsidian", "chegg"]
+
+        churn_reviews = []
+        competitor_mentions = Counter()
+
+        cohort_veteran = []
+        cohort_new = []
+        cohort_paying = []
+
+        for r in reviews:
+            txt = r.get("review", "").lower()
+            if any(k in txt for k in churn_keywords):
+                churn_reviews.append(r)
+
+            for comp in competitor_keywords:
+                if comp in txt:
+                    competitor_mentions[comp.title()] += 1
+
+            # Cohorts
+            if any(k in txt for k in ["years", "months", "long time", "used to love", "update ruined", "old version", "bring back"]):
+                cohort_veteran.append(r)
+            elif any(k in txt for k in ["first time", "just downloaded", "new user", "started using", "onboarding"]):
+                cohort_new.append(r)
+            elif any(k in txt for k in ["subscription", "paid", "premium", "refund", "charge", "bought", "plus"]):
+                cohort_paying.append(r)
+
+        total = max(len(reviews), 1)
+        churn_pct = round((len(churn_reviews) / total) * 100, 1)
+
+        churn_risk_verdict = "Critical Churn Threat" if churn_pct >= 15 else ("Moderate Churn Risk" if churn_pct >= 5 else "Low Churn Risk")
+
+        return {
+            "churn_threat_count": len(churn_reviews),
+            "churn_percentage": churn_pct,
+            "churn_risk_level": churn_risk_verdict,
+            "competitor_mentions": dict(competitor_mentions.most_common(5)),
+            "cohort_breakdown": {
+                "long_term_users": {
+                    "count": len(cohort_veteran),
+                    "percentage": round((len(cohort_veteran) / total) * 100, 1),
+                    "sentiment": "Sensitive to unexpected UI redesigns, removed shortcuts, and paywalls on previously free tools."
+                },
+                "new_users": {
+                    "count": len(cohort_new),
+                    "percentage": round((len(cohort_new) / total) * 100, 1),
+                    "sentiment": "Drop off early due to signup latency, OTP delivery issues, and first-time tutorial friction."
+                },
+                "paying_subscribers": {
+                    "count": len(cohort_paying),
+                    "percentage": round((len(cohort_paying) / total) * 100, 1),
+                    "sentiment": "Demands value transparency, offline stability, and zero interstitial advertisements."
+                }
+            }
         }
 
     @classmethod
@@ -998,6 +1174,10 @@ Focus on achieving **Crash-Free Sessions >= 99.8%**, lifting the **Store Rating 
 
         # Step 6: Thematic Clustering
         themes = cls.thematic_clustering(cleaned_reviews)
+
+        # Version Regressions & Churn Intelligence
+        version_regressions = cls.analyze_version_regressions(cleaned_reviews)
+        churn_data = cls.analyze_churn_and_cohorts(cleaned_reviews)
 
         # Step 7: Prioritized Problems
         prioritized_problems = problems  # Already sorted by Priority Score
@@ -1045,7 +1225,24 @@ Focus on achieving **Crash-Free Sessions >= 99.8%**, lifting the **Store Rating 
         )
 
         # Visual Analytics for Dashboard Charts, Graphs & Heatmap
-        visual_analytics = cls.compute_visual_analytics(cleaned_reviews, themes, prioritized_problems)
+        visual_analytics = cls.compute_visual_analytics(
+            reviews=cleaned_reviews,
+            themes=themes,
+            problems=prioritized_problems,
+            version_regressions=version_regressions,
+            churn_data=churn_data
+        )
+        visual_analytics["version_chart"] = {
+            "labels": [v["version"] for v in version_regressions[:6]],
+            "ratings": [v["average_rating"] for v in version_regressions[:6]],
+            "neg_pcts": [v["negative_percentage"] for v in version_regressions[:6]],
+            "statuses": [v["status"] for v in version_regressions[:6]]
+        }
+        visual_analytics["churn_metrics"] = {
+            "churn_percentage": churn_data.get("churn_percentage", 0),
+            "churn_risk_level": churn_data.get("churn_risk_level", "Low"),
+            "churn_threat_count": churn_data.get("churn_threat_count", 0)
+        }
 
         # Build final compliant output
         final_output = {
@@ -1072,6 +1269,8 @@ Focus on achieving **Crash-Free Sessions >= 99.8%**, lifting the **Store Rating 
             "metrics": metrics,
             "cross_platform_analysis": cross_platform,
             "executive_summary": exec_summary,
+            "version_analysis": version_regressions,
+            "churn_analysis": churn_data,
             "visual_analytics": visual_analytics
         }
 
