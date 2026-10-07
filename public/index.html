@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="App Reviewer - Actionable Product Management Feedback Analytics, Version Regressions, Sentiment Trends, and PRD Synthesis.">
+  <meta name="description"
+    content="App Reviewer - Actionable Product Management Feedback Analytics, Version Regressions, Sentiment Trends, and PRD Synthesis.">
   <title>App Reviewer | Product Management Intelligence</title>
 
   <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
 
   <!-- Chart.js for graphs & charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -17,6 +21,7 @@
   <!-- Stylesheet (Clean White and Blue Theme) -->
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
 
   <!-- Clean Header (No emojis, no status pill, App Reviewer branding) -->
@@ -36,19 +41,15 @@
     <!-- 1st Page: Simple Single Input Box -->
     <section class="hero-section" id="search-section">
       <h2>Mobile Feedback <span>Intelligence</span></h2>
-      <p>Enter any mobile application name or app store link to analyze reviews across versions, sentiment trends over time, regression alerts, and actionable product recommendations.</p>
+      <p>Enter any mobile application name or app store link to analyze reviews across versions, sentiment trends over
+        time, regression alerts, and actionable product recommendations.</p>
 
       <!-- Single Simple Text Box -->
       <form id="search-form" onsubmit="event.preventDefault();" class="search-card">
         <div class="search-icon-box">App:</div>
-        <input 
-          type="text" 
-          id="single-app-input" 
-          class="search-input" 
-          placeholder="Enter app name or store link (e.g. Spotify, Duolingo, WhatsApp, Quizlet, or Play/App Store link)..." 
-          value="Quizlet: AI Study Flashcards" 
-          autocomplete="off"
-        />
+        <input type="text" id="single-app-input" class="search-input"
+          placeholder="Enter app name or store link (e.g. Spotify, Duolingo, WhatsApp, Quizlet, or Play/App Store link)..."
+          value="" autocomplete="off" />
         <button type="submit" id="btn-submit-analyze" class="btn-analyze">
           Analyze App
         </button>
@@ -60,8 +61,8 @@
         <button type="button" class="quick-try-chip" data-app="Spotify">Spotify</button>
         <button type="button" class="quick-try-chip" data-app="Duolingo">Duolingo</button>
         <button type="button" class="quick-try-chip" data-app="Notion">Notion</button>
-        <button type="button" class="quick-try-chip" data-app="Quizlet">Quizlet</button>
-        <button type="button" class="quick-try-chip" data-app="MiniReview">MiniReview</button>
+        <button type="button" class="quick-try-chip" data-app="WhatsApp">WhatsApp</button>
+        <button type="button" class="quick-try-chip" data-app="Facebook">Facebook</button>
       </div>
     </section>
 
@@ -69,12 +70,13 @@
     <section class="loading-box" id="loading-state" aria-live="polite">
       <div class="loading-spinner"></div>
       <div class="loading-title" id="loading-title">Retrieving and Analyzing Reviews...</div>
-      <div class="loading-subtitle" id="loading-subtitle">Collecting reviews by version and date, evaluating regression signals, and building PM charts.</div>
+      <div class="loading-subtitle" id="loading-subtitle">Collecting reviews by version and date, evaluating regression
+        signals, and building PM charts.</div>
     </section>
 
     <!-- Visual Results Dashboard -->
     <section class="results-wrapper" id="results-view">
-      
+
       <!-- App Header Banner -->
       <div class="app-header-card" id="app-header-box">
         <div class="app-title-group">
@@ -115,7 +117,7 @@
       <!-- Section: Visual Graphs & Charts -->
       <h3 class="section-heading">Visual Feedback Trends & Charts</h3>
       <div class="charts-grid">
-        
+
         <!-- Graph 1: Reviews & Sentiment Trend Over Time -->
         <div class="chart-card">
           <h4>Sentiment Trend Over Time (By Review Date)</h4>
@@ -181,7 +183,8 @@
       <!-- Graph 5: Thematic Heatmap Matrix -->
       <div class="heatmap-card">
         <h4>Issue Category & Severity Heatmap</h4>
-        <p>Heat-map visualization showing user complaint intensity across Severity Levels (Level 1 = Minor to Level 5 = Critical).</p>
+        <p>Heat-map visualization showing user complaint intensity across Severity Levels (Level 1 = Minor to Level 5 =
+          Critical).</p>
         <div style="overflow-x: auto;">
           <table class="heatmap-table" id="heatmap-table-element">
             <thead>
@@ -207,12 +210,14 @@
         <div class="churn-box">
           <h5>Uninstall & Churn Threat Level</h5>
           <div style="font-size: 1.8rem; font-weight: 800; color: var(--rose);" id="churn-level-text">Low Risk</div>
-          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.35rem;" id="churn-stat-desc">0 reviews threaten uninstall or cancellation.</p>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.35rem;" id="churn-stat-desc">0
+            reviews threaten uninstall or cancellation.</p>
         </div>
 
         <div class="churn-box">
           <h5>Competitors Mentioned by Users</h5>
-          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.6rem;">Competing products mentioned in user comparisons:</p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.6rem;">Competing products mentioned
+            in user comparisons:</p>
           <div id="competitors-list-wrapper">
             <span style="font-size: 0.85rem; color: var(--text-muted);">None mentioned</span>
           </div>
@@ -220,7 +225,8 @@
 
         <div class="churn-box">
           <h5>User Cohort Breakdown</h5>
-          <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;" id="cohort-breakdown-wrapper">
+          <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;"
+            id="cohort-breakdown-wrapper">
             <!-- Rendered dynamically -->
           </div>
         </div>
@@ -283,4 +289,5 @@
   <!-- Frontend Logic -->
   <script src="/static/js/app.js"></script>
 </body>
+
 </html>
