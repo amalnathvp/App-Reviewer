@@ -86,10 +86,10 @@ To run the application locally:
 pip install -r requirements.txt
 
 # Start local server
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload --port 8001
 ```
 
-Open your browser at `http://127.0.0.1:8000`.
+Open your browser at `http://127.0.0.1:8001`.
 
 ---
 
